@@ -3,7 +3,7 @@
 Plugin Name: Ideal Interactive Maps
 Plugin URI: http://idealwebgeek.com
 Description: Interactive and Informative map
-Version: 0.1
+Version: 1.1
 */
 define("PLUGINURL", dirname(__FILE__) );
 require_once( dirname(__FILE__) ."/metaboxes/meta_box.php");
@@ -19,7 +19,6 @@ class ideal_interactive_map{
 		add_action("wp_ajax_nopriv_mapdata", array($this, "json_mapdata"), 20);
 		add_action("wp_ajax_mapsubpage", array($this, "ajax_mapsubpage"), 20);
 		add_action("wp_ajax_nopriv_mapsubpage", array($this, "ajax_mapsubpage"), 20);
-		//remove_filter( 'the_content', 'wpautop' );
 		add_action( 'wp_enqueue_scripts', array($this, "header") );	
 		add_action("wp_footer", array($this, "footer"), 20);
 		
@@ -45,7 +44,6 @@ class ideal_interactive_map{
 			wp_enqueue_script( 'ammap-light', plugins_url( 'ammap/themes/light.js' , __FILE__ ), array("jquery"), '20140319', true);
 			wp_enqueue_script('jquery-ui-tabs');
 			
-		//	wp_enqueue_style( 'Sans-narrow', 'http://fonts.googleapis.com/css?family=PT+Sans+Narrow:400,700' , array(), '20140319', true );
 			wp_enqueue_style( 'jquery-ui-css', '//code.jquery.com/ui/1.11.0/themes/smoothness/jquery-ui.css', false, '20140319', false);
 			wp_enqueue_style( 'scrollbar', plugins_url( 'src/perfect-scrollbar.css' , __FILE__ ));
 			wp_enqueue_style( 'ammap-style', plugins_url( 'src/style.css' , __FILE__ ));
@@ -65,7 +63,6 @@ class ideal_interactive_map{
         </div>
     	</div>
     	<div id="mapreadmore">
-    	
     	</div> 
 xxx;
     	
@@ -90,8 +87,7 @@ xxx;
 				$id = get_the_ID();
 				$country_code = get_post_meta($id, "map_country", true);
 				if($country_code && isset($countries[$country_code])){
-				
-					
+						
 					$areas[] = array(
 											"id"=>$country_code,
 											"groupId"=>$country_code
@@ -130,7 +126,6 @@ xxx;
 		$page =  isset( $this->options['page_id'] ) ? $this->options['page_id'] : 0 ;
 		
 		if(!is_page($page) && $page == 0) return;
-			
 			
 	 $image = plugins_url( 'ammap/images/' , __FILE__ );
 	 
@@ -191,8 +186,7 @@ xxx;
 			});
 			
 			function zoomOut () {
-			    map.zoomOut();
-			    
+			    map.zoomOut(); 
 			}
 			
 		    function centerMap () {
@@ -517,7 +511,6 @@ xxx;
 		return (!empty($code) && isset($countries[$code])) ? $countries[$code] : $countries;
 
 	}
-	
 	
     /**
      * Add options page
