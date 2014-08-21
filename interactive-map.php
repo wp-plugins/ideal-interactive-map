@@ -3,7 +3,7 @@
 Plugin Name: Ideal Interactive Maps
 Plugin URI: http://idealwebgeek.com
 Description: Interactive and Informative map
-Version: 1.1
+Version: 1.1.0
 */
 define("PLUGINURL", dirname(__FILE__) );
 require_once( dirname(__FILE__) ."/metaboxes/meta_box.php");

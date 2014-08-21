@@ -3,13 +3,12 @@ Contributors: Jhayghost
 Tags: interactive map, maps, amcharts map, amcharts, map with country description, Interactive world, javascript maps, html5maps, non-flash map
 Requires at least: 3.1
 Tested up to: 3.9.2
-Stable tag: 1.1
+Stable tag: 1.1.0
 Author: Jhayghost
 Author URI: http://www.idealwebgeek.com/
 License: GPLv2 or later
 
 Fully functional world map with a professional looking clickable country links that is very easy to set up.
-
 
 == Description ==
 
@@ -36,6 +35,7 @@ Resources Used:
 - Perfect scrollbar: Hyeonje Alex Jun and other contributors
 
 == Installation ==
+
 1) Upload the Ideal Interactive Map plugin to your website and Activate it.
 
 2) Create new page and paste this shortcode [iwg_maps] to the wysiwyg WordPress Editor.
@@ -50,6 +50,7 @@ Resources Used:
 
 
 == Screenshots ==
+
 1. Full map 
 2. Active/clicked individual country 
-3. Manage Map admin part
+3. Manage Map Admin part
