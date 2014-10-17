@@ -1,9 +1,9 @@
 <?php
 /*
 Plugin Name: Ideal Interactive Maps
-Plugin URI: http://idealwebgeek.com
+Plugin URI: http://www.globalnetforce.com
 Description: Interactive and Informative map
-Version: 1.1.0
+Version: 1.2.0
 */
 define("PLUGINURL", dirname(__FILE__) );
 require_once( dirname(__FILE__) ."/metaboxes/meta_box.php");
@@ -11,7 +11,7 @@ require_once( dirname(__FILE__) ."/metaboxes/meta_box.php");
 class ideal_interactive_map{
 	function __construct(){
 	
-        $this->options = get_option( 'cso_map_page' );
+        $this->options = get_option( 'map_map_page' );
         
 		add_action("init", array(&$this, "register_postType"));
 		add_shortcode("iwg_maps", array($this, "shortcode"));
@@ -20,12 +20,6 @@ class ideal_interactive_map{
 		add_action("wp_ajax_mapsubpage", array($this, "ajax_mapsubpage"), 20);
 		add_action("wp_ajax_nopriv_mapsubpage", array($this, "ajax_mapsubpage"), 20);
 		add_action( 'wp_enqueue_scripts', array($this, "header") );	
-		add_action("wp_footer", array($this, "footer"), 20);
-		
-		if( is_admin() ){
-	        add_action( 'admin_menu', array( $this, 'add_plugin_page' ) );
-	        add_action( 'admin_init', array( $this, 'page_init' ) );
-        }
 			
 	}
 	
@@ -51,11 +45,21 @@ class ideal_interactive_map{
 			
 	}
 	
-	function shortcode(){
+	function shortcode( $atts, $content = null){
+		add_action("wp_footer", array($this, "footer"), 20);
 		$close = plugins_url( 'img/close.png' , __FILE__ );
+		$attribute = shortcode_atts( array(
+								'zoom_level' => "",
+								'zoom_latitude' => "",
+								'zoom_longitude' => "",
+							), $atts );
+		
+		$zoomLevel = $attribute['zoom_level'];
+		$zoomLongitude = $attribute['zoom_longitude'];
+		$zoomLatitude = $attribute['zoom_latitude'];			
 		$return = <<<xxx
     	<div id="map-container">
-        <div id="mapdiv" style="width: 100%; background-color:#EEEEEE; height: 500px;"></div>
+        <div id="mapdiv" data-lat="{$zoomLatitude}" data-long="{$zoomLongitude}" data-zoom="{$zoomLevel}" style="width: 100%; background-color:#EEEEEE; height: 500px;"></div>
         <div id="desc_overlay" class="animated">
 	        <h2 class="pop_desc_title"></h2><span id="ico_close"><img src="$close" align="middle" /></span>
 	        <div id="overlay-content"></p>
@@ -86,11 +90,13 @@ xxx;
 			while ( $the_query->have_posts() ) { $the_query->the_post();
 				$id = get_the_ID();
 				$country_code = get_post_meta($id, "map_country", true);
+				$map_color = get_post_meta($id, "map_color", true);
 				if($country_code && isset($countries[$country_code])){
 						
 					$areas[] = array(
-											"id"=>$country_code,
-											"groupId"=>$country_code
+										"id"=>$country_code,
+										"groupId"=>$country_code,
+										"color"=> ($map_color) ? $map_color : "#5c95c4"
 									);
 									
 					$images_array[] = array(
@@ -122,23 +128,25 @@ xxx;
 		exit;
 	}
 	function footer(){
-	
-		$page =  isset( $this->options['page_id'] ) ? $this->options['page_id'] : 0 ;
 		
-		if(!is_page($page) && $page == 0) return;
-			
 	 $image = plugins_url( 'ammap/images/' , __FILE__ );
 	 
 	 $jsonparse = admin_url('admin-ajax.php?action=mapdata');
 	 $mapsubpageurl = admin_url('admin-ajax.php?action=mapsubpage');
-		echo <<<xxx
-        <script type="text/javascript">
+	echo <<<xxxx
+		<script type="text/javascript">
    	     	var map;
+			var mapAttributes = jQuery("#map-container #mapdiv");
+			var iwgdatalat = mapAttributes.attr("data-lat");
+			var iwgdatalong = mapAttributes.attr("data-long");
+			var iwgdatazoom = mapAttributes.attr("data-zoom");
+
 			var mapDataProvider = {
 			        map: "worldLow",
 			        zoomOnDoubleClick: false
 			    };
 			
+
 			AmCharts.ready(function() {
 				map = new AmCharts.AmMap();
 				map.type = "map";
@@ -148,6 +156,7 @@ xxx;
 				map.getAreasFromMap = true;
 				map.mouseWheelZoomEnabled = true;
 				map.dataProvider = {};
+				
 				map.imagesSettings = {
 									    rollOverScale: 2,
 									    selectedScale: 2,
@@ -170,6 +179,18 @@ xxx;
 				
 				jQuery.getJSON( "{$jsonparse}", function(xconsole){
 					map.dataProvider = xconsole;
+					
+					if(iwgdatalat != ""){
+						map.dataProvider.zoomLatitude = iwgdatalat;
+					}
+					
+					if(iwgdatalong != ""){
+						map.dataProvider.zoomLongitude = iwgdatalong;
+					}
+					
+					if( iwgdatazoom != ""){
+						map.dataProvider.zoomLevel = iwgdatazoom;
+					}
 									    
 				map.write("mapdiv");
 				});
@@ -289,13 +310,12 @@ xxx;
 			    }
 			})(jQuery);
         </script>
-xxx;
+xxxx;
 	}
-	
+
 	function ajax_mapsubpage(){
 		
-		
-		$id = wp_filter_kses($_REQUEST['pid']);
+        $id = wp_filter_kses($_REQUEST['pid']);
 		
 		$field = get_field("subpages", $id);
 		if($field){
@@ -365,246 +385,302 @@ xxx;
 					'id'	=> $prefix.'country',
 					'type'	=> 'select',
 					'options' => $countryoption
+				),
+				array(
+					'label'	=> 'Color',
+					'desc'	=> 'Select country color.',
+					'id'	=> $prefix.'color',
+					'type'	=> 'color'
 				)
 			);
 		new custom_add_meta_box( 'map_box', 'Map Properties', $fields, array("map_maps"), true );
+        
+		add_action('admin_footer-edit.php', array($this, "admin_footer") );
 	}
 	
+    function admin_footer(){
+     	$queried_post_type = get_query_var('post_type');
+    	if( $queried_post_type != "map_maps" ) return ;
+        $html = <<<xxxx
+        <script type="html/template" class="iwg_help">
+        <p class="maphelp" style="color: #7105ad; clear: both; cursor:pointer">[ click to show map shortcode and attributes ]</p>
+        <div class="iwg_help_cont" style="display:none;padding: 10px; background: #FFF">
+        <p><strong>Shortcode:</strong></p>
+            <code>[iwg_maps]</code>
+            <p><em><strong>Advance Attributes</strong></em><br />
+            zoom_level = magnifies the view to a specific portion in the map (increasing number = magnifying view)            
+            <p><em>Epicenter of the map depends on the values that you will declare below:</em></p>
+zoom_longitude<br />zoom_latitude
+            <p><em>HOW:</em> To accurately get the location coordinates use this <a href="http://www.mapcoordinates.net/en" target="_blank">http://www.mapcoordinates.net/en</a></p>
+            <code>[iwg_maps zoom_level="3" zoom_longitude= "121" zoom_latitude="12"]</code>
+            </p>
+        </div>
+        </script>
+        <script type="text/javascript">
+        	jQuery(".post-type-map_maps #wpbody-content .wrap > h2").after( "<div class=\"iwg_help_wrapper\">" +jQuery(".iwg_help").html() + "</div>");
+			jQuery(document).ready(function(e) {
+                jQuery(".iwg_help_wrapper").on("click", ".maphelp", function(){
+					jQuery(".iwg_help_wrapper .iwg_help_cont").toggle();
+				});
+            });
+        </script>
+xxxx;
+		echo $html;
+    }
 	function mappoints($code = ""){
 			// format country, latitude, longitude
 			$countries = array(
-					 'FI' => array("Finland", 64.00, 26.00),
-					 'GH' => array("Ghana", 8.00, -2.00),
-					 'BD' => array('Bangladesh', 23.70, 90.40),
-					 'CM' => array('Cameroon', 6.00, 12.00),
-					 'CN' => array('China', 35.00, 105.00), 
-					 'CU' => array('Cuba', 21.50, -80.00), 
-					 'GM' => array( "country" =>'Gambia', 13.50,  -15.50), 
-					 'KE' => array('Kenya', 1.00, 38.00), 
-					 'MZ' => array('Mozambique', -18.25, 35.00), 
-					 'NA' => array('Namibia', -22.00, 17.00), 
-					 'VC' => array('St Vincent and the Grenadines', 13.25 , -61.2 ), 
-					 'TZ' => array('Tanzania, United Rep of', -6.00,  35.00), 
-					 'VN' => array('Viet Nam', 16.00, 106.00),
-					 'ZA' => array('South Africa', -30.00, 26.00), 
-					 'AF' => array('Afghanistan', 33.00, 65.00), 
-					 'MY' => array('Malaysia', 4.22, 101.97), 
-					 'TG' => array('Togo', 8.00, 1.17), 
-					 'KR' => array('Korea, Rep of (South)', 37.00, 127.50), 
-					 'ID' => array('Indonesia', -5.00, 120.00), 
-					 'SS' => array('South Sudan', 4.85, 31.6), 
-					 'PH' => array('Philippines', 13.00, 122.00), 
-					 'BN' => array('Brunei Darussalam', 4.50, 114.67), 
-					 'KH' => array('Cambodia', 13.00, 105.00), 
-					 'LA' => array('Lao People\'s Dem Rep', 18.00, 105.00), 
-					 'MM' => array('Myanmar (Burma)', 22.00, 98.00), 
-					 'SG' => array('Singapore', 1.37, 103.80 ), 
-					 'TH' => array('Thailand', 15.00, 100.00), 
-					 'CG' => array('Congo, Rep of', -1.00, 15.00), 
-					 'UG' => array('Uganda', 2.00, 33.00), 
-					 'KZ' => array('Kazakhstan', 48.00, 68.00 ), 
-					 'JP' => array('Japan', 36.00, 138.00), 
-					 'AE' => array('United Arab Emirates', 24.00, 54.00), 
-					 'US' => array('United States of America', 38.00, -98.00), 
-					 'AL' => array('Albania', 41.00, 20.00), 
-					 'AR' => array('Argentina', -34.00, -64.00), 
-					 'AU' => array('Australia', -25.00, 135.00), 
-					 'AT' => array('Austria', 47.33, 13.33), 
-					 'BO' => array('Bolivia, Plurinational State of', -17.00, -65.00), 
-					 'BJ' => array('Benin', 9.50, 2.25), 
-					 'BW' => array('Botswana', -22.00, 24.00), 
-					 'BR' => array('Brazil', -10.00, -55.00), 
-					 'BG' => array('Bulgaria', 43.00, 25.00), 
-					 'CA' => array('Canada', 60.00, -96.00), 
-					 'CF' => array('Central African Republic', 7.00, 21.00), 
-					 'CL' => array('Chile', -30.00, -71.00), 
-					 'CO' => array('Colombia', 4.00, -72.00), 
-					 'HR' => array('Croatia', 45.17, 15.50), 
-					 'CZ' => array('Czech Republic', 49.75, 15.00), 
-					 'DK' => array('Denmark', 56.00, 10.00), 
-					 'DO' => array('Dominican Republic', 19.00, -70.67 ), 
-					 'EC' => array('Ecuador', -2.00, -77.50), 
-					 'EG' => array('Egypt', 27.00, 30.00), 
-					 'SV' => array('El Salvador', 13.83, -88.92), 
-					 'FR' => array('France', 46.00, 2.00), 
-					 'DE' => array('Germany', 51.50, 10.50), 
-					 'GR' => array('Greece',  39.00, 22.00), 
-					 'GT' => array('Guatemala', 15.50, -90.25), 
-					 'HN' => array('Honduras', 15.00, -86.50), 
-					 'HU' => array('Hungary', 47.00, 20.00), 
-					 'IS' => array('Iceland', 65.00, -18.00), 
-					 'IN' => array('India', 20.00, 77.00), 
-					 'IQ' => array('Iraq', 33.00, 44.00), 
-					 'IE' => array('Ireland', 53.00, -8.00), 
-					 'IL' => array('Israel', 31.50, 34.75), 
-					 'IT' => array('Italy', 42.83, 12.83), 
-					 'JM' => array('Jamaica', 18.25, -77.50), 
-					 'JO' => array('Jordan', 31.00, 36.00), 
-					 'KW' => array('Kuwait', 9.50, 47.75), 
-					 'LT' => array('Lithuania', 56.00, 24.00), 
-					 'MW' => array('Malawi', -13.50, 34.00), 
-					 'MA' => array('Morocco', 32.00, -5.00), 
-					 'RU' => array('Russian Federation', 60.00, 47.00), 
-					 'NP' => array('Nepal', 28.00, 84.00), 
-					 'NL' => array('Netherlands', 52.50, 5.75), 
-					 'NZ' => array('New Zealand', -42.00, 174.00), 
-					 'NI' => array('Nicaragua', 13.00, -85.00), 
-					 'NE' => array('Niger', 16.00, 8.00), 
-					 'NG' => array('Nigeria', 10.00, 8.00), 
-					 'NO' => array('Norway', 62.00, 10.00), 
-					 'PK' => array('Pakistan', 30.00, 70.00), 
-					 'PA' => array('Panama', 9.00, -80.00), 
-					 'PG' => array('Papua New Guinea', -6.00, 147.00), 
-					 'PY' => array('Paraguay', -23.00, -58.00), 
-					 'PE' => array('Peru', -10.00, -76.00), 
-					 'PL' => array('Poland', 52.00, 20.00), 
-					 'PT' => array('Portugal', 39.50, -8.00), 
-					 'SY' => array('Syria, Arab Rep', 35.00, 38.00), 
-					 'RO' => array('Romania', 46.00, 25.00), 
-					 'RW' => array('Rwanda', -2.00, 30.00), 
-					 'SA' => array('Saudi Arabia', 25.00, 45.00), 
-					 'SN' => array('Senegal', 14.00, -14.00), 
-					 'RS' => array('Serbia', 43.80, 21.00), 
-					 'SK' => array('Slovakia', 48.67, 19.50), 
-					 'VE' => array('Venezuela, Bolivarian Rep of', 8.00, -66.00), 
-					 'SI' => array('Slovenia', 46.25, 15.17), 
-					 'ES' => array('Spain', 40.00, -4.00), 
-					 'SZ' => array('Swaziland', -26.50, 31.50 ), 
-					 'SE' => array('Sweden', 62.00, 15.00), 
-					 'CH' => array('Switzerland', 47.00, 8.00), 
-					 'TJ' => array('Tajikistan', 39.00, 71.00), 
-					 'TT' => array('Trinidad and Tobago', 10.66	-61.00), 
-					 'TN' => array('Tunisia', 34.00, 9.00), 
-					 'TR' => array('Turkey', 39.00, 35.00), 
-					 'UA' => array('Ukraine', 49.00, 32.00), 
-					 'GB' => array('United Kingdom', 54.00, -4.50), 
-					 'UY' => array('Uruguay', -33.00, -56.00), 
-					 'YE' => array('Yemen', 15.50, 47.50), 
-					 'ZM' => array('Zambia', -15.00, 30.00), 
-					 'ZW ' => array('Zimbabwe', -19.00, 29.00), 
-					 'EH' => array('Western Sahara', 23.00, -14.00), 
-					 'BF' => array('Burkina Faso', 13.00, -2.00), 
-					 'ET' => array('Ethiopia', 8.00, 39.00), 
-					 'AM' => array('Armenia', 40.00, 45.00), 
-					 'AZ' => array('Azerbaijan', 40.50, 47.50), 
-					 'BY' => array('Belarus', 53.00, 28.00), 
-					 'EE' => array('Estonia', 59.00, 26.00), 
-					 'GE' => array('Georgia', 42.00, 43.50), 
-					 'AO' => array('Angola', -12.50, 18.50), 
-					 'BI' => array('Burundi', -3.50, 30.00), 
-					 'TD' => array('Chad', 15.00, 19.00), 
-					 'SL' => array('Sierra Leone', 8.50, -11.50), 
-					 'SD' => array('Sudan', 15.00, 30.00), 
-					 'BT' => array('Bhutan', 27.50, 90.50), 
-					 'FM' => array('Micronesia, Federated States of', 6.916, 158.25), 
-					 'IR' => array('Iran, Islamic Rep of', 32.00, 53.00), 
-					 'WF' => array('Wallis and Futuna', -14.00, -177.00 ), 
-					 'GI' => array('Gibraltar', 36.13, -5.35), 
-					 'MX' => array('Mexico', 23.00, -102.00), 
-					 'BE' => array('Belgium', 50.83, 4.00), 
-					 'KG' => array('Kyrgyzstan', 41.00, 75.00), 
-					 'MN' => array('Mongolia', 46.00, 105.00), 
-					 'UZ' => array('Uzbekistan', 41.00, 64.00), 
-					 'GN' => array('Guinea', 11.00, -10.00)
+					"AD"=> array("Andorra", 42.546245, 1.601554),
+                    "AE"=> array("United Arab Emirates", 23.424076, 53.847818),
+                    "AF"=> array("Afghanistan", 33.93911, 67.709953),
+                    "AG"=> array("Antigua and Barbuda", 17.060816, -61.796428),
+                    "AI"=> array("Anguilla", 18.220554, -63.068615),
+                    "AL"=> array("Albania", 41.153332, 20.168331),
+                    "AM"=> array("Armenia", 40.069099, 45.038189),
+                    "AN"=> array("Netherlands Antilles", 12.226079, -69.060087),
+                    "AO"=> array("Angola", -11.202692, 17.873887),
+                    "AQ"=> array("Antarctica", -75.250973, -0.071389),
+                    "AR"=> array("Argentina", -38.416097, -63.616672),
+                    "AS"=> array("American Samoa", -14.270972, -170.132217),
+                    "AT"=> array("Austria", 47.516231, 14.550072),
+                    "AU"=> array("Australia", -25.274398, 133.775136),
+                    "AW"=> array("Aruba", 12.52111, -69.968338),
+                    "AZ"=> array("Azerbaijan", 40.143105, 47.576927),
+                    "BA"=> array("Bosnia and Herzegovina", 43.915886, 17.679076),
+                    "BB"=> array("Barbados", 13.193887, -59.543198),
+                    "BD"=> array("Bangladesh", 23.684994, 90.356331),
+                    "BE"=> array("Belgium", 50.503887, 4.469936),
+                    "BF"=> array("Burkina Faso", 12.238333, -1.561593),
+                    "BG"=> array("Bulgaria", 42.733883, 25.48583),
+                    "BH"=> array("Bahrain", 25.930414, 50.637772),
+                    "BI"=> array("Burundi", -3.373056, 29.918886),
+                    "BJ"=> array("Benin", 9.30769, 2.315834),
+                    "BM"=> array("Bermuda", 32.321384, -64.75737),
+                    "BN"=> array("Brunei", 4.535277, 114.727669),
+                    "BO"=> array("Bolivia", -16.290154, -63.588653),
+                    "BR"=> array("Brazil", -14.235004, -51.92528),
+                    "BS"=> array("Bahamas", 25.03428, -77.39628),
+                    "BT"=> array("Bhutan", 27.514162, 90.433601),
+                    "BV"=> array("Bouvet Island", -54.423199, 3.413194),
+                    "BW"=> array("Botswana", -22.328474, 24.684866),
+                    "BY"=> array("Belarus", 53.709807, 27.953389),
+                    "BZ"=> array("Belize", 17.189877, -88.49765),
+                    "CA"=> array("Canada", 56.130366, -106.346771),
+                    "CC"=> array("Cocos [Keeling] Islands", -12.164165, 96.870956),
+                    "CD"=> array("Congo [DRC]", -4.038333, 21.758664),
+                    "CF"=> array("Central African Republic", 6.611111, 20.939444),
+                    "CG"=> array("Congo [Republic]", -0.228021, 15.827659),
+                    "CH"=> array("Switzerland", 46.818188, 8.227512),
+                    "CI"=> array("Côte d'Ivoire", 7.539989, -5.54708),
+                    "CK"=> array("Cook Islands", -21.236736, -159.777671),
+                    "CL"=> array("Chile", -35.675147, -71.542969),
+                    "CM"=> array("Cameroon", 7.369722, 12.354722),
+                    "CN"=> array("China", 35.86166, 104.195397),
+                    "CO"=> array("Colombia", 4.570868, -74.297333),
+                    "CR"=> array("Costa Rica", 9.748917, -83.753428),
+                    "CU"=> array("Cuba", 21.521757, -77.781167),
+                    "CV"=> array("Cape Verde", 16.002082, -24.013197),
+                    "CX"=> array("Christmas Island", -10.447525, 105.690449),
+                    "CY"=> array("Cyprus", 35.126413, 33.429859),
+                    "CZ"=> array("Czech Republic", 49.817492, 15.472962),
+                    "DE"=> array("Germany", 51.165691, 10.451526),
+                    "DJ"=> array("Djibouti", 11.825138, 42.590275),
+                    "DK"=> array("Denmark", 56.26392, 9.501785),
+                    "DM"=> array("Dominica", 15.414999, -61.370976),
+                    "DO"=> array("Dominican Republic", 18.735693, -70.162651),
+                    "DZ"=> array("Algeria", 28.033886, 1.659626),
+                    "EC"=> array("Ecuador", -1.831239, -78.183406),
+                    "EE"=> array("Estonia", 58.595272, 25.013607),
+                    "EG"=> array("Egypt", 26.820553, 30.802498),
+                    "EH"=> array("Western Sahara", 24.215527, -12.885834),
+                    "ER"=> array("Eritrea", 15.179384, 39.782334),
+                    "ES"=> array("Spain", 40.463667, -3.74922),
+                    "ET"=> array("Ethiopia", 9.145, 40.489673),
+                    "FI"=> array("Finland", 61.92411, 25.748151),
+                    "FJ"=> array("Fiji", -16.578193, 179.414413),
+                    "FK"=> array("Falkland Islands [Islas Malvinas]", -51.796253, -59.523613),
+                    "FM"=> array("Micronesia", 7.425554, 150.550812),
+                    "FO"=> array("Faroe Islands", 61.892635, -6.911806),
+                    "FR"=> array("France", 46.227638, 2.213749),
+                    "GA"=> array("Gabon", -0.803689, 11.609444),
+                    "GB"=> array("United Kingdom", 55.378051, -3.435973),
+                    "GD"=> array("Grenada", 12.262776, -61.604171),
+                    "GE"=> array("Georgia", 42.315407, 43.356892),
+                    "GF"=> array("French Guiana", 3.933889, -53.125782),
+                    "GG"=> array("Guernsey", 49.465691, -2.585278),
+                    "GH"=> array("Ghana", 7.946527, -1.023194),
+                    "GI"=> array("Gibraltar", 36.137741, -5.345374),
+                    "GL"=> array("Greenland", 71.706936, -42.604303),
+                    "GM"=> array("Gambia", 13.443182, -15.310139),
+                    "GN"=> array("Guinea", 9.945587, -9.696645),
+                    "GP"=> array("Guadeloupe", 16.995971, -62.067641),
+                    "GQ"=> array("Equatorial Guinea", 1.650801, 10.267895),
+                    "GR"=> array("Greece", 39.074208, 21.824312),
+                    "GS"=> array("South Georgia and the South Sandwich Islands", -54.429579, -36.587909),
+                    "GT"=> array("Guatemala", 15.783471, -90.230759),
+                    "GU"=> array("Guam", 13.444304, 144.793731),
+                    "GW"=> array("Guinea-Bissau", 11.803749, -15.180413),
+                    "GY"=> array("Guyana", 4.860416, -58.93018),
+                    "GZ"=> array("Gaza Strip", 31.354676, 34.308825),
+                    "HK"=> array("Hong Kong", 22.396428, 114.109497),
+                    "HM"=> array("Heard Island and McDonald Islands", -53.08181, 73.504158),
+                    "HN"=> array("Honduras", 15.199999, -86.241905),
+                    "HR"=> array("Croatia", 45.1, 15.2),
+                    "HT"=> array("Haiti", 18.971187, -72.285215),
+                    "HU"=> array("Hungary", 47.162494, 19.503304),
+                    "ID"=> array("Indonesia", -0.789275, 113.921327),
+                    "IE"=> array("Ireland", 53.41291, -8.24389),
+                    "IL"=> array("Israel", 31.046051, 34.851612),
+                    "IM"=> array("Isle of Man", 54.236107, -4.548056),
+                    "IN"=> array("India", 20.593684, 78.96288),
+                    "IO"=> array("British Indian Ocean Territory", -6.343194, 71.876519),
+                    "IQ"=> array("Iraq", 33.223191, 43.679291),
+                    "IR"=> array("Iran", 32.427908, 53.688046),
+                    "IS"=> array("Iceland", 64.963051, -19.020835),
+                    "IT"=> array("Italy", 41.87194, 12.56738),
+                    "JE"=> array("Jersey", 49.214439, -2.13125),
+                    "JM"=> array("Jamaica", 18.109581, -77.297508),
+                    "JO"=> array("Jordan", 30.585164, 36.238414),
+                    "JP"=> array("Japan", 36.204824, 138.252924),
+                    "KE"=> array("Kenya", -0.023559, 37.906193),
+                    "KG"=> array("Kyrgyzstan", 41.20438, 74.766098),
+                    "KH"=> array("Cambodia", 12.565679, 104.990963),
+                    "KI"=> array("Kiribati", -3.370417, -168.734039),
+                    "KM"=> array("Comoros", -11.875001, 43.872219),
+                    "KN"=> array("Saint Kitts and Nevis", 17.357822, -62.782998),
+                    "KP"=> array("North Korea", 40.339852, 127.510093),
+                    "KR"=> array("South Korea", 35.907757, 127.766922),
+                    "KW"=> array("Kuwait", 29.31166, 47.481766),
+                    "KY"=> array("Cayman Islands", 19.513469, -80.566956),
+                    "KZ"=> array("Kazakhstan", 48.019573, 66.923684),
+                    "LA"=> array("Laos", 19.85627, 102.495496),
+                    "LB"=> array("Lebanon", 33.854721, 35.862285),
+                    "LC"=> array("Saint Lucia", 13.909444, -60.978893),
+                    "LI"=> array("Liechtenstein", 47.166, 9.555373),
+                    "LK"=> array("Sri Lanka", 7.873054, 80.771797),
+                    "LR"=> array("Liberia", 6.428055, -9.429499),
+                    "LS"=> array("Lesotho", -29.609988, 28.233608),
+                    "LT"=> array("Lithuania", 55.169438, 23.881275),
+                    "LU"=> array("Luxembourg", 49.815273, 6.129583),
+                    "LV"=> array("Latvia", 56.879635, 24.603189),
+                    "LY"=> array("Libya", 26.3351, 17.228331),
+                    "MA"=> array("Morocco", 31.791702, -7.09262),
+                    "MC"=> array("Monaco", 43.750298, 7.412841),
+                    "MD"=> array("Moldova", 47.411631, 28.369885),
+                    "ME"=> array("Montenegro", 42.708678, 19.37439),
+                    "MG"=> array("Madagascar", -18.766947, 46.869107),
+                    "MH"=> array("Marshall Islands", 7.131474, 171.184478),
+                    "MK"=> array("Macedonia [FYROM]", 41.608635, 21.745275),
+                    "ML"=> array("Mali", 17.570692, -3.996166),
+                    "MM"=> array("Myanmar [Burma]", 21.913965, 95.956223),
+                    "MN"=> array("Mongolia", 46.862496, 103.846656),
+                    "MO"=> array("Macau", 22.198745, 113.543873),
+                    "MP"=> array("Northern Mariana Islands", 17.33083, 145.38469),
+                    "MQ"=> array("Martinique", 14.641528, -61.024174),
+                    "MR"=> array("Mauritania", 21.00789, -10.940835),
+                    "MS"=> array("Montserrat", 16.742498, -62.187366),
+                    "MT"=> array("Malta", 35.937496, 14.375416),
+                    "MU"=> array("Mauritius", -20.348404, 57.552152),
+                    "MV"=> array("Maldives", 3.202778, 73.22068),
+                    "MW"=> array("Malawi", -13.254308, 34.301525),
+                    "MX"=> array("Mexico", 23.634501, -102.552784),
+                    "MY"=> array("Malaysia", 4.210484, 101.975766),
+                    "MZ"=> array("Mozambique", -18.665695, 35.529562),
+                    "NA"=> array("Namibia", -22.95764, 18.49041),
+                    "NC"=> array("New Caledonia", -20.904305, 165.618042),
+                    "NE"=> array("Niger", 17.607789, 8.081666),
+                    "NF"=> array("Norfolk Island", -29.040835, 167.954712),
+                    "NG"=> array("Nigeria", 9.081999, 8.675277),
+                    "NI"=> array("Nicaragua", 12.865416, -85.207229),
+                    "NL"=> array("Netherlands", 52.132633, 5.291266),
+                    "NO"=> array("Norway", 60.472024, 8.468946),
+                    "NP"=> array("Nepal", 28.394857, 84.124008),
+                    "NR"=> array("Nauru", -0.522778, 166.931503),
+                    "NU"=> array("Niue", -19.054445, -169.867233),
+                    "NZ"=> array("New Zealand", -40.900557, 174.885971),
+                    "OM"=> array("Oman", 21.512583, 55.923255),
+                    "PA"=> array("Panama", 8.537981, -80.782127),
+                    "PE"=> array("Peru", -9.189967, -75.015152),
+                    "PF"=> array("French Polynesia", -17.679742, -149.406843),
+                    "PG"=> array("Papua New Guinea", -6.314993, 143.95555),
+                    "PH"=> array("Philippines", 12.879721, 121.774017),
+                    "PK"=> array("Pakistan", 30.375321, 69.345116),
+                    "PL"=> array("Poland", 51.919438, 19.145136),
+                    "PM"=> array("Saint Pierre and Miquelon", 46.941936, -56.27111),
+                    "PN"=> array("Pitcairn Islands", -24.703615, -127.439308),
+                    "PR"=> array("Puerto Rico", 18.220833, -66.590149),
+                    "PS"=> array("Palestinian Territories", 31.952162, 35.233154),
+                    "PT"=> array("Portugal", 39.399872, -8.224454),
+                    "PW"=> array("Palau", 7.51498, 134.58252),
+                    "PY"=> array("Paraguay", -23.442503, -58.443832),
+                    "QA"=> array("Qatar", 25.354826, 51.183884),
+                    "RE"=> array("Réunion", -21.115141, 55.536384),
+                    "RO"=> array("Romania", 45.943161, 24.96676),
+                    "RS"=> array("Serbia", 44.016521, 21.005859),
+                    "RU"=> array("Russia", 61.52401, 105.318756),
+                    "RW"=> array("Rwanda", -1.940278, 29.873888),
+                    "SA"=> array("Saudi Arabia", 23.885942, 45.079162),
+                    "SB"=> array("Solomon Islands", -9.64571, 160.156194),
+                    "SC"=> array("Seychelles", -4.679574, 55.491977),
+                    "SD"=> array("Sudan", 12.862807, 30.217636),
+                    "SE"=> array("Sweden", 60.128161, 18.643501),
+                    "SG"=> array("Singapore", 1.352083, 103.819836),
+                    "SH"=> array("Saint Helena", -24.143474, -10.030696),
+                    "SI"=> array("Slovenia", 46.151241, 14.995463),
+                    "SJ"=> array("Svalbard and Jan Mayen", 77.553604, 23.670272),
+                    "SK"=> array("Slovakia", 48.669026, 19.699024),
+                    "SL"=> array("Sierra Leone", 8.460555, -11.779889),
+                    "SM"=> array("San Marino", 43.94236, 12.457777),
+                    "SN"=> array("Senegal", 14.497401, -14.452362),
+                    "SO"=> array("Somalia", 5.152149, 46.199616),
+                    "SR"=> array("Suriname", 3.919305, -56.027783),
+                    "ST"=> array("São Tomé and Príncipe", 0.18636, 6.613081),
+                    "SV"=> array("El Salvador", 13.794185, -88.89653),
+                    "SY"=> array("Syria", 34.802075, 38.996815),
+                    "SZ"=> array("Swaziland", -26.522503, 31.465866),
+                    "TC"=> array("Turks and Caicos Islands", 21.694025, -71.797928),
+                    "TD"=> array("Chad", 15.454166, 18.732207),
+                    "TF"=> array("French Southern Territories", -49.280366, 69.348557),
+                    "TG"=> array("Togo", 8.619543, 0.824782),
+                    "TH"=> array("Thailand", 15.870032, 100.992541),
+                    "TJ"=> array("Tajikistan", 38.861034, 71.276093),
+                    "TK"=> array("Tokelau", -8.967363, -171.855881),
+                    "TL"=> array("Timor-Leste", -8.874217, 125.727539),
+                    "TM"=> array("Turkmenistan", 38.969719, 59.556278),
+                    "TN"=> array("Tunisia", 33.886917, 9.537499),
+                    "TO"=> array("Tonga", -21.178986, -175.198242),
+                    "TR"=> array("Turkey", 38.963745, 35.243322),
+                    "TT"=> array("Trinidad and Tobago", 10.691803, -61.222503),
+                    "TV"=> array("Tuvalu", -7.109535, 177.64933),
+                    "TW"=> array("Taiwan", 23.69781, 120.960515),
+                    "TZ"=> array("Tanzania", -6.369028, 34.888822),
+                    "UA"=> array("Ukraine", 48.379433, 31.16558),
+                    "UG"=> array("Uganda", 1.373333, 32.290275),
+                    "UM"=> array("U.S. Minor Outlying Islands", 28.200001,-177.333328),
+                    "US"=> array("United States", 37.09024, -95.712891),
+                    "UY"=> array("Uruguay", -32.522779, -55.765835),
+                    "UZ"=> array("Uzbekistan", 41.377491, 64.585262),
+                    "VA"=> array("Vatican City", 41.902916, 12.453389),
+                    "VC"=> array("Saint Vincent and the Grenadines", 12.984305, -61.287228),
+                    "VE"=> array("Venezuela", 6.42375, -66.58973),
+                    "VG"=> array("British Virgin Islands", 18.420695, -64.639968),
+                    "VI"=> array("U.S. Virgin Islands", 18.335765, -64.896335),
+                    "VN"=> array("Vietnam", 14.058324, 108.277199),
+                    "VU"=> array("Vanuatu", -15.376706, 166.959158),
+                    "WF"=> array("Wallis and Futuna", -13.768752, -177.156097),
+                    "WS"=> array("Samoa", -13.759029, -172.104629),
+                    "XK"=> array("Kosovo", 42.602636, 20.902977),
+                    "YE"=> array("Yemen", 15.552727, 48.516388),
+                    "YT"=> array("Mayotte", -12.8275, 45.166244),
+                    "ZA"=> array("South Africa", -30.559482, 22.937506),
+                    "ZM"=> array("Zambia", -13.133897, 27.849332),
+                    "ZW"=> array("Zimbabwe", -19.015438, 29.154857),
 				 );
 
 		return (!empty($code) && isset($countries[$code])) ? $countries[$code] : $countries;
 
 	}
 	
-    /**
-     * Add options page
-     */
-    public function add_plugin_page()
-    {
-        // This page will be under "Settings"
-        add_options_page(
-            'Settings Admin', 
-            'Interactive Map Settings', 
-            'manage_options', 
-            'map-setting-admin', 
-            array( $this, 'create_admin_page' )
-        );
-    }
-
-    /**
-     * Options page callback
-     */
-    public function create_admin_page()
-    {
-        // Set class property
-        ?>
-        <div class="wrap">         
-            <form method="post" action="options.php">
-            <?php
-                // This prints out all hidden setting fields
-                settings_fields( 'map_map_page_group' );   
-                do_settings_sections( 'map-setting-admin' );
-                submit_button(); 
-            ?>
-            </form>
-        </div>
-        <?php
-    }
-
-    /**
-     * Register and add settings
-     */
-    public function page_init()
-    {        
-        register_setting(
-            'map_map_page_group', // Option group
-            'map_map_page', // Option name
-            array( $this, 'sanitize' ) // Sanitize
-        );
-
-        add_settings_section(
-            'setting_section_id', // ID
-            'Interactive Map Settings', // Title
-            array( $this, 'print_section_info' ), // Callback
-            'map-setting-admin' // Page
-        );  
-
-        add_settings_field(
-            'page_id', // ID
-            'Page ID', // Title 
-            array( $this, 'id_number_callback' ), // Callback
-            'map-setting-admin', // Page
-            'setting_section_id' // Section           
-        );      
-
-    }
-    
-    /** 
-     * Print the Section text
-     */
-    public function print_section_info()
-    {
-        print 'Enter your settings below:';
-    }
-
-    /**
-     * Sanitize each setting field as needed
-     *
-     * @param array $input Contains all settings fields as array keys
-     */
-    public function sanitize( $input )
-    {
-        $new_input = array();
-        if( isset( $input['page_id'] ) )
-            $new_input['page_id'] = absint( $input['page_id'] );
-		return $new_input;
-	}
-	
-    /** 
-     * Get the settings option array and print one of its values
-     */
-    public function id_number_callback()
-    {
-        printf(
-            '<input type="text" id="page_id" name="map_map_page[page_id]" value="%s" />',
-            isset( $this->options['page_id'] ) ? esc_attr( $this->options['page_id']) : ''
-        );
-    }
 }
 $ideal_interactive_map = new ideal_interactive_map();
+?>

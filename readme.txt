@@ -1,11 +1,11 @@
 ﻿=== Ideal Interactive Map ===
-Contributors: Jhayghost
-Tags: interactive map, maps, amcharts map, amcharts, map with country description, Interactive world, javascript maps, html5maps, non-flash map
+Contributors: GlobalNetForce
+Tags: interactive map, maps, amcharts map, amcharts, map with country description, Interactive world, javascript maps, html5maps, non-flash map, world map, custom map
 Requires at least: 3.1
 Tested up to: 3.9.2
-Stable tag: 1.1.0
-Author: Jhayghost
-Author URI: http://www.idealwebgeek.com/
+Stable tag: 1.2.0
+Author: GlobalNetForce
+Author URI: http://www.globalnetforce.com
 License: GPLv2 or later
 
 Fully functional world map with a professional looking clickable country links that is very easy to set up.
@@ -24,15 +24,30 @@ I am very much into WordPress community and its a great opportunity to share my 
 
 I cannot promise my availability to attend into is ASAP but ill try my best to reach out and I will appreciate you taking time to send me feedbacks.
 
-Resources Used:
+= Shortcode =
 
-- Map: http://www.amcharts.com/javascript-maps/
+[iwg_maps] or [iwg_maps zoom_level="3" zoom_longitude= "121" zoom_latitude="12"]
 
-- Custom Metabox: https://github.com/tammyhart/Reusable-Custom-WordPress-Meta-Boxes
+= How to =
+[youtube http://www.youtube.com/watch?v=MwiiSXyDBiQ]
 
-- Flags: Phoca Flags 1.0.0 by Jan Pavelka http://www.phoca.cz 
+= Additional Plugin Features =
+*	Complete Country list
+*	You can set colour for each country
+*	Pop-up for full description for the selected country
+*	Flag per country
+*   Map attributes for zoom_level, zoom_longitude, zoom_latitude
 
-- Perfect scrollbar: Hyeonje Alex Jun and other contributors
+
+= Resources Used =
+
+- Map library: http://www.amcharts.com/javascript-maps/
+
+- Custom Metabox: [tammyhart](https://github.com/tammyhart/Reusable-Custom-WordPress-Meta-Boxes "Custom Metabox")
+
+- Flags: Phoca Flags 1.0.0 by [Jan Pavelka](http://www.phoca.cz "Phoca Flags 1.0.0")
+
+- Perfect scrollbar: [Hyeonje Alex Jun and other contributors](http://plugins.jquery.com/perfect-scrollbar/ "Perfect scrollbar")  
 
 == Installation ==
 
@@ -40,17 +55,26 @@ Resources Used:
 
 2) Create new page and paste this shortcode [iwg_maps] to the wysiwyg WordPress Editor.
 
-3) Take note of the page id for the page you have just created. 
+3) Once you had successfully set up the plugin, you should be able to find Manage Maps menu on the WordPress admin menu on the left hand side of your admin page.
 
-4) Go to Settings -> Interactive Map Settings and paste the Page ID on the field provided, hit Save Changes.
+4) Manage Maps section will give you the freedom to add the countries that you wanted to include in your map. You don’t have to worry about the lists of the country names as it is already completely laid upon in a drop down format.
 
-5) Once you had successfully set up the plugin, you should be able to find Manage Maps menu on the WordPress admin menu on the right hand side of your admin page.
+= Shortcode Example =
 
-6) Manage Maps section will give you the freedom to add the countries that you wanted to include in your map. You don’t have to worry about the lists of the country names as it is already completely laid upon in a drop down format.
-
+[iwg_maps] or [iwg_maps zoom_level="3" zoom_longitude= "121" zoom_latitude="12"]
 
 == Screenshots ==
 
 1. Full map 
 2. Active/clicked individual country 
 3. Manage Map Admin part
+
+== Changelog ==
+
+= 1.2.0 =
+*	Added shortcode attributes zoom_level, zoom_longitude, zoom_latitude
+*	Removed settings page
+*	Updated country list from [Google](https://developers.google.com/public-data/docs/canonical/countries_csv "Google Map country coordinates")
+
+= 1.1.0 =
+*   First release
