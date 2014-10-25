@@ -1,9 +1,9 @@
-﻿=== Ideal Interactive Map ===
+=== Ideal Interactive Map ===
 Contributors: GlobalNetForce
 Tags: interactive map, maps, amcharts map, amcharts, map with country description, Interactive world, javascript maps, html5maps, non-flash map, world map, custom map
 Requires at least: 3.1
 Tested up to: 3.9.2
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 Author: GlobalNetForce
 Author URI: http://www.globalnetforce.com
 License: GPLv2 or later
@@ -70,6 +70,9 @@ I cannot promise my availability to attend into is ASAP but ill try my best to r
 3. Manage Map Admin part
 
 == Changelog ==
+
+= 1.2.1 =
+*	Bug fix- unloaded map reported by dfl1955 @ https://wordpress.org/support/topic/map-does-not-render
 
 = 1.2.0 =
 *	Added shortcode attributes zoom_level, zoom_longitude, zoom_latitude

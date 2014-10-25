@@ -3,7 +3,7 @@
 Plugin Name: Ideal Interactive Maps
 Plugin URI: http://www.globalnetforce.com
 Description: Interactive and Informative map
-Version: 1.2.0
+Version: 1.2.1
 */
 define("PLUGINURL", dirname(__FILE__) );
 require_once( dirname(__FILE__) ."/metaboxes/meta_box.php");
@@ -20,13 +20,12 @@ class ideal_interactive_map{
 		add_action("wp_ajax_mapsubpage", array($this, "ajax_mapsubpage"), 20);
 		add_action("wp_ajax_nopriv_mapsubpage", array($this, "ajax_mapsubpage"), 20);
 		add_action( 'wp_enqueue_scripts', array($this, "header") );	
-			
 	}
 	
 	function header(){
-			$page =  isset( $this->options['page_id'] ) ? $this->options['page_id'] : 0 ;
-
-			if(!is_page($page) && $page == 0) return;
+		global $post;
+			if( ! is_a( $post, 'WP_Post' ) && ! has_shortcode( $post->post_content, 'iwg_maps') )
+			return false;
 			
 			$version = "1";
 			wp_enqueue_script( 'jquery-mousewheel', plugins_url( 'src/jquery.mousewheel.js' , __FILE__ ) , array( 'jquery' ), '20140319', true );
@@ -46,7 +45,10 @@ class ideal_interactive_map{
 	}
 	
 	function shortcode( $atts, $content = null){
+		
+		
 		add_action("wp_footer", array($this, "footer"), 20);
+		
 		$close = plugins_url( 'img/close.png' , __FILE__ );
 		$attribute = shortcode_atts( array(
 								'zoom_level' => "",
