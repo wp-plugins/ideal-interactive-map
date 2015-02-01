@@ -3,16 +3,30 @@
 Plugin Name: Ideal Interactive Maps
 Plugin URI: http://www.globalnetforce.com
 Description: Interactive and Informative map
-Version: 1.2.1
+Version: 1.2.2
 */
 define("PLUGINURL", dirname(__FILE__) );
 require_once( dirname(__FILE__) ."/metaboxes/meta_box.php");
 
 class ideal_interactive_map{
+	var $default_added_map_color = "#5c95c4";
+	var $default_disabled_map_color = "#81C1DF";
+	var $default_rollover_map_color = "#15a892";
+	var $default_selected_map_color = "#15a892";
+	var $disabled_flag = false;
+	
 	function __construct(){
 	
-        $this->options = get_option( 'map_map_page' );
+		//vars 
+        $this->options = get_option( 'map_settings' );        
+        $this->default_added_map_color = (isset($this->options['default_added_map_color'])) ? $this->options['default_added_map_color'] : $this->default_added_map_color;
+        $this->default_disabled_map_color = (isset($this->options['default_disabled_map_color'])) ? $this->options['default_disabled_map_color'] : $this->default_disabled_map_color;
+        $this->default_rollover_map_color = (isset($this->options['default_rollover_map_color'])) ? $this->options['default_rollover_map_color'] : $this->default_rollover_map_color;
+        $this->default_selected_map_color = (isset($this->options['default_selected_map_color'])) ? $this->options['default_selected_map_color'] : $this->default_selected_map_color;
         
+        $this->disabled_flag = (isset($this->options['disabled_map'])) ? $this->options['disabled_map'] : $this->disabled_flag;
+        
+        //Actions
 		add_action("init", array(&$this, "register_postType"));
 		add_shortcode("iwg_maps", array($this, "shortcode"));
 		add_action("wp_ajax_mapdata", array($this, "json_mapdata"), 20);
@@ -20,13 +34,16 @@ class ideal_interactive_map{
 		add_action("wp_ajax_mapsubpage", array($this, "ajax_mapsubpage"), 20);
 		add_action("wp_ajax_nopriv_mapsubpage", array($this, "ajax_mapsubpage"), 20);
 		add_action( 'wp_enqueue_scripts', array($this, "header") );	
+		
+		add_action( 'admin_menu', array($this, 'map_add_admin_menu') );
+		add_action( 'admin_init', array($this, 'map_settings_init') );
 	}
-	
 	function header(){
 		global $post;
-			if( ! is_a( $post, 'WP_Post' ) && ! has_shortcode( $post->post_content, 'iwg_maps') )
+
+			if( is_a( $post, 'WP_Post' ) && !has_shortcode( $post->post_content, 'iwg_maps') )
 			return false;
-			
+
 			$version = "1";
 			wp_enqueue_script( 'jquery-mousewheel', plugins_url( 'src/jquery.mousewheel.js' , __FILE__ ) , array( 'jquery' ), '20140319', true );
 			wp_enqueue_script( 'jquery-scrollbar', plugins_url( 'src/perfect-scrollbar.js' , __FILE__ ), array( ), '20140319', true );
@@ -40,6 +57,7 @@ class ideal_interactive_map{
 			wp_enqueue_style( 'jquery-ui-css', '//code.jquery.com/ui/1.11.0/themes/smoothness/jquery-ui.css', false, '20140319', false);
 			wp_enqueue_style( 'scrollbar', plugins_url( 'src/perfect-scrollbar.css' , __FILE__ ));
 			wp_enqueue_style( 'ammap-style', plugins_url( 'src/style.css' , __FILE__ ));
+			if( !$this->disabled_flag )
 			wp_enqueue_style( 'phoca-flags', plugins_url( 'src/phoca-flags.css' , __FILE__ ), false, '20140319', false);
 			
 	}
@@ -98,7 +116,7 @@ xxx;
 					$areas[] = array(
 										"id"=>$country_code,
 										"groupId"=>$country_code,
-										"color"=> ($map_color) ? $map_color : "#5c95c4"
+										"color"=> (!$map_color || ( $map_color && $map_color == '#')) ? $this->default_added_map_color : $map_color
 									);
 									
 					$images_array[] = array(
@@ -111,7 +129,9 @@ xxx;
 								            "longitude"=> $countries[$country_code][2],
 								            "groupId"=> $country_code,
 								            "custom"=> array(
-								            	"desc"=> '<div class="phoca-flagbox"><span class="phoca-flag '. strtolower($country_code) .'"></span></div>' . get_the_content()
+								            	"desc"=> 
+								            	((!$this->disabled_flag) ?
+								            	'<div class="phoca-flagbox"><span class="phoca-flag '. strtolower($country_code) .'"></span></div>' : '') . get_the_content()
 								            )
 										);
 				}
@@ -135,6 +155,10 @@ xxx;
 	 
 	 $jsonparse = admin_url('admin-ajax.php?action=mapdata');
 	 $mapsubpageurl = admin_url('admin-ajax.php?action=mapsubpage');
+	 
+	 //Colors
+	 $unlistedColor = $this->default_disabled_map_color;
+	 $default_rollover_map_color = $this->default_rollover_map_color;
 	echo <<<xxxx
 		<script type="text/javascript">
    	     	var map;
@@ -171,9 +195,9 @@ xxx;
 				map.selectedObject = { color: "#15a892"},
 				
 			    map.areasSettings = {
-			        rollOverColor: "#15a892",
+			        rollOverColor: "{$default_rollover_map_color}",
 			        color: "#5296cb",
-			        unlistedAreasColor: "#81C1DF",
+			        unlistedAreasColor: "{$unlistedColor}",
 			        selectedColor: "#15a892",
 					rollOverAlpha: 0.8
 			    };
@@ -214,10 +238,6 @@ xxx;
 			
 		    function centerMap () {
 			  //  map.zoomToLongLat(map.zoomLevel(), map.initialZoomLongitude, map.initialZoomLatitude, true);
-			}
-			
-			function l(s){
-				console.log(s);
 			}
 			
 		    jQuery(document).ready(function ($) {
@@ -390,9 +410,10 @@ xxxx;
 				),
 				array(
 					'label'	=> 'Color',
-					'desc'	=> 'Select country color.',
+					'desc'	=> 'Select country color. <i>Set or change the default color <a href="' . admin_url("options-general.php?page=ideal_interactive_map") . '" target="_blank">Here</a></i>',
 					'id'	=> $prefix.'color',
-					'type'	=> 'color'
+					'type'	=> 'color',
+					'meta' 	=> $this->default_added_map_color
 				)
 			);
 		new custom_add_meta_box( 'map_box', 'Map Properties', $fields, array("map_maps"), true );
@@ -403,9 +424,10 @@ xxxx;
     function admin_footer(){
      	$queried_post_type = get_query_var('post_type');
     	if( $queried_post_type != "map_maps" ) return ;
+    	$ideal_interactive_map_url = admin_url("options-general.php?page=ideal_interactive_map");
         $html = <<<xxxx
         <script type="html/template" class="iwg_help">
-        <p class="maphelp" style="color: #7105ad; clear: both; cursor:pointer">[ click to show map shortcode and attributes ]</p>
+        <p style="color: #7105ad; clear: both; cursor:pointer">[ <span class="maphelp">click to show map shortcode and attributes</a> ] [ <a style="color: #7105ad;text-decoration:none" href="{$ideal_interactive_map_url}">Set Default Ideal Interactive Map Settings</a> ]</p>
         <div class="iwg_help_cont" style="display:none;padding: 10px; background: #FFF">
         <p><strong>Shortcode:</strong></p>
             <code>[iwg_maps]</code>
@@ -683,6 +705,141 @@ xxxx;
 
 	}
 	
+	
+	function map_add_admin_menu(  ) { 
+	
+		add_options_page( 'Ideal Interactive Map Settings', 'Ideal Interactive Map', 'manage_options', 'ideal_interactive_map', array( $this, 'map_options_page' ));
+	
+	}
+	
+	
+	function map_settings_init(  ) { 
+	
+		register_setting( 'pluginPage', 'map_settings' );
+	
+		add_settings_section(
+			'map_pluginPage_section2', 
+			__( '', 'iwg' ), 
+			array( $this, 'map_settings_section_callback'), 
+			'pluginPage'
+		);
+		add_settings_field( 
+			'disabled_map', 
+			__( 'Disable Country Flag', 'iwg' ), 
+			array( $this, 'disabled_map_render'), 
+			'pluginPage', 
+			'map_pluginPage_section2' 
+		);
+		
+		add_settings_section(
+			'map_pluginPage_section', 
+			__( 'Default Colors', 'iwg' ), 
+			array( $this, 'map_settings_section_callback'), 
+			'pluginPage'
+		);
+	
+		add_settings_field( 
+			'default_added_map_color', 
+			__( 'Added Country Map', 'iwg' ), 
+			array( $this, 'default_added_map_color_render'), 
+			'pluginPage', 
+			'map_pluginPage_section' 
+		);
+		add_settings_field( 
+			'default_disabled_map_color', 
+			__( 'Disabled Country Map', 'iwg' ), 
+			array( $this, 'default_disabled_map_color_render'), 
+			'pluginPage', 
+			'map_pluginPage_section' 
+		);
+		add_settings_field( 
+			'default_rollover_map_color', 
+			__( 'Rollover for Country Map', 'iwg' ), 
+			array( $this, 'default_rollover_map_color_render'), 
+			'pluginPage', 
+			'map_pluginPage_section' 
+		);	
+		add_settings_field( 
+			'default_selected_map_color', 
+			__( 'Selected for Country Map', 'iwg' ), 
+			array( $this, 'default_selected_map_color_render'), 
+			'pluginPage', 
+			'map_pluginPage_section' 
+		);	
+	
+	
+	}
+	
+	function default_added_map_color_render(  ) { 
+	
+		$options = get_option( 'map_settings' );
+		?>
+		<input type='text' name='map_settings[default_added_map_color]' value='<?php echo (isset($options['default_added_map_color'])) ? $options['default_added_map_color'] : $this->default_added_map_color; ?>'>
+		 <small><i>ex: #FFFFFF</i></small><?php
+	
+	}
+	
+	function default_disabled_map_color_render(  ) { 
+	
+		$options = get_option( 'map_settings' );
+		?>
+		<input type='text' name='map_settings[default_disabled_map_color]' value='<?php echo (isset($options['default_disabled_map_color'])) ? $options['default_disabled_map_color'] : $this->default_disabled_map_color; ?>'>
+		 <small><i>ex: #FFFFFF</i></small><?php
+	
+	}
+	
+	function default_rollover_map_color_render(  ) { 
+	
+		$options = get_option( 'map_settings' );
+		?>
+		<input type='text' name='map_settings[default_rollover_map_color]' value='<?php echo (isset($options['default_rollover_map_color'])) ? $options['default_rollover_map_color'] : $this->default_rollover_map_color; ?>'>
+		 <small><i>ex: #FFFFFF</i></small><?php
+	
+	}
+	
+	function default_selected_map_color_render(  ) { 
+	
+		$options = get_option( 'map_settings' );
+		?>
+		<input type='text' name='map_settings[default_selected_map_color]' value='<?php echo (isset($options['default_selected_map_color'])) ? $options['default_selected_map_color'] : $this->default_selected_map_color; ?>'>
+		 <small><i>ex: #FFFFFF</i></small><?php
+	
+	}
+	
+	function disabled_map_render(  ) { 
+	
+		$options = get_option( 'map_settings' );
+		?>
+		<label><input type="checkbox" name='map_settings[disabled_map]' <?php if( $this->disabled_flag ) checked( $options['disabled_map'], 1 ); ?> value='1'> Yes</label>
+		<?php
+	
+	}
+	
+	function map_settings_section_callback(  ) { 
+	
+	
+	}
+	
+	function map_options_page(  ) { 
+	
+		?>
+		<form action='options.php' method='post'>
+			
+			<h2>Ideal Interactive Map Settings</h2>
+			
+			<?php
+			settings_fields( 'pluginPage' );
+			do_settings_sections( 'pluginPage' );
+			submit_button();
+			?>
+			
+		</form>
+		<?php
+	
+	}
+	
 }
 $ideal_interactive_map = new ideal_interactive_map();
+
+
 ?>

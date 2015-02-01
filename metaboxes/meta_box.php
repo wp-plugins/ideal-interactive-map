@@ -28,7 +28,8 @@ function custom_meta_box_field( $field, $meta = null, $repeatable = null ) {
 	$repeatable_fields = isset( $field['repeatable_fields'] ) ? $field['repeatable_fields'] : null;
 	
 	// the id and name for each field
-	$id = $name = isset( $field['id'] ) ? $field['id'] : null;
+	$id = isset( $field['id'] ) ? $field['id'] : null;
+	$name = isset( $field['name'] ) ? $field['name'] : $id;
 	if ( $repeatable ) {
 		$name = $repeatable[0] . '[' . $repeatable[1] . '][' . $id .']';
 		$id = $repeatable[0] . '_' . $repeatable[1] . '_' . $id;
@@ -551,6 +552,7 @@ class Custom_Add_Meta_Box {
 						<td>';
 						
 						$meta = get_post_meta( get_the_ID(), $field['id'], true);
+						$meta = (!$meta && isset($field['meta'])) ? $field['meta'] : $meta;
 						echo custom_meta_box_field( $field, $meta );
 						
 				echo     '<td>

@@ -182,3 +182,6 @@
 	vertical-align: middle;
 	border: 1px solid #e5e5e5;
 }
+.ps-container {
+	background-image:none !important;
+}
